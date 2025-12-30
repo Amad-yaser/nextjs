@@ -1,0 +1,309 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// المستخدمون والصلاحيات
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String?
+  role      UserRole @default(USER)
+  avatar    String?
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  websites     Website[]
+  services     Service[]
+  orders       Order[]
+  reviews      Review[]
+  contactMessages ContactMessage[]
+  sessions     Session[]
+  notifications Notification[]
+  posts        Post[]
+  
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// الفئات
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  icon        String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  websites Website[]
+  services Service[]
+  posts    Post[]
+
+  @@map("categories")
+}
+
+// المواقع والقوالب
+model Website {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  description String?
+  content     String?
+  price       Float?
+  image       String?
+  images      String?  // JSON string of additional images
+  demoUrl     String?
+  downloadUrl String?
+  category    String
+  tags        String?  // JSON string of tags
+  features    String?  // JSON string of features
+  isFree      Boolean  @default(false)
+  isFeatured  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  downloads   Int      @default(0)
+  views       Int      @default(0)
+  rating      Float    @default(0)
+  reviewCount Int      @default(0)
+  providerId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  provider User    @relation(fields: [providerId], references: [id])
+  reviews  Review[]
+  orders   Order[]
+  categoryObj Category @relation(fields: [category], references: [id])
+
+  @@map("websites")
+}
+
+// الخدمات
+model Service {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  description String?
+  content     String?
+  price       Float?
+  image       String?
+  category    String
+  tags        String?  // JSON string of tags
+  features    String?  // JSON string of features
+  isFeatured  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  rating      Float    @default(0)
+  reviewCount Int      @default(0)
+  providerId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  provider User    @relation(fields: [providerId], references: [id])
+  reviews  Review[]
+  orders   Order[]
+  categoryObj Category @relation(fields: [category], references: [id])
+
+  @@map("services")
+}
+
+// الطلبات
+model Order {
+  id          String      @id @default(cuid())
+  orderNumber String      @unique
+  type        OrderType
+  itemId      String      // Website or Service ID
+  quantity    Int         @default(1)
+  price       Float
+  status      OrderStatus @default(PENDING)
+  paymentId   String?
+  notes       String?
+  customerId  String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  customer User     @relation(fields: [customerId], references: [id])
+  website  Website? @relation(fields: [itemId], references: [id])
+  service  Service? @relation(fields: [itemId], references: [id])
+
+  @@map("orders")
+}
+
+// التقييمات
+model Review {
+  id        String   @id @default(cuid())
+  rating    Int      // 1-5 stars
+  comment   String?
+  itemId    String   // Website or Service ID
+  itemType  String   // "website" or "service"
+  userId    String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user    User     @relation(fields: [userId], references: [id])
+  website Website? @relation(fields: [itemId], references: [id])
+  service Service? @relation(fields: [itemId], references: [id])
+
+  @@map("reviews")
+}
+
+// رسائل التواصل
+model ContactMessage {
+  id        String        @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  status    ContactStatus @default(NEW)
+  notes     String?
+  userId    String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("contact_messages")
+}
+
+// المقالات والمدونة
+model Post {
+  id          String      @id @default(cuid())
+  title       String
+  slug        String      @unique
+  content     String?
+  excerpt     String?
+  image       String?
+  category    String?
+  tags        String?     // JSON string of tags
+  status      PostStatus  @default(DRAFT)
+  isFeatured  Boolean     @default(false)
+  views       Int         @default(0)
+  authorId    String
+  publishedAt DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  author  User      @relation(fields: [authorId], references: [id])
+  categoryObj Category? @relation(fields: [category], references: [id])
+
+  @@map("posts")
+}
+
+// الإشعارات
+model Notification {
+  id        String           @id @default(cuid())
+  title     String
+  message   String
+  type      NotificationType
+  userId    String?
+  isRead    Boolean          @default(false)
+  data      String?          // JSON data
+  createdAt DateTime         @default(now())
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+// إعدادات الموقع
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+  type  String @default("string") // string, number, boolean, json
+  group String @default("general")
+
+  @@map("settings")
+}
+
+// صور الخلفية
+model BackgroundImage {
+  id        String   @id @default(cuid())
+  url       String
+  title     String?
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("background_images")
+}
+
+// Enums
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum OrderType {
+  WEBSITE
+  SERVICE
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PROCESSING
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum ContactStatus {
+  NEW
+  READ
+  REPLIED
+  CLOSED
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+  ORDER
+  REVIEW
+  CONTACT
+}
